@@ -80,7 +80,9 @@ def pair_dist_pd_wrapper(selections, molid):
     for t in range(molecule.numframes(molid)):
         i = 0
         for item in selections: 
-            data[t, i] = utils._calcdist(item['sel1'], item['sel2'])
+            sel1 = atomsel(item['sel1'], molid=molid, frame=t)
+            sel2 = atomsel(item['sel2'], molid=molid, frame=t)
+            data[t, i] = utils._calcdist(sel1, sel2)
             i = i + 1
     dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
     return dataout
