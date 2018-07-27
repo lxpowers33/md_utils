@@ -4,7 +4,7 @@ from IPython import embed
 from os import listdir
 from os.path import isfile, join
 from vmd import *
-from utils import *
+import utils
 
 ####################################################
 #####             Load Trajectories            #####
@@ -73,6 +73,18 @@ def rmsd_pd_wrapper(sel, molid):
     data = rmsd_from_initial(sel, molid)
     dataout = pd.DataFrame(data, columns = ['rmsd'])
     return dataout
+
+def pair_dist_pd_wrapper(selections, molid): 
+    names = []
+    data = np.zeros((molecule.numframes(molid),len(selections)))
+    for t in range(molecule.numframes(molid)):
+        i = 0
+        for item in selections: 
+            data[t, i] = utils._calcdist(item['sel1'], item['sel2'])
+            i = i + 1
+    dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
+    return dataout
+
 ####################################################
 #####            Analysis over Conditions      #####
 ####################################################
