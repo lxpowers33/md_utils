@@ -7,6 +7,9 @@ Prep_purpose = "Document steps for preparing system"
 version_starter_text = "v1 is my first version of simulations. Any alterations made in later versions will be described here."
 prep_starter_text = "<Description of all steps goes here>"
 
+def test():
+	print("test worked!! :)")
+
 def new_folder(path):
 	#check that folder does not already exist
 	if not os.path.exists(path):
