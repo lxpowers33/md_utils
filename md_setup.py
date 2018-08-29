@@ -51,3 +51,31 @@ def build_new_simulation_directory(directory, config):
 		build_new_condition_directory(directory, c, config)
 	#build the readme file for conditions and versioning methods
 	new_readme(directory, config["conditions_text"], Condition_purpose, config['creator'], config['project'])
+
+from os import listdir
+
+def setup_simulation_files(directory, condition, version, reps, input_dir):
+	'''
+	Usage: setup_simulation_files(directory, 'MK6_loop', 'v1', 5, 'input_dir')
+	'''
+	f = open("setup_condition.sh","w+")
+	for c in range(1,reps+1):
+
+		target_dir = directory + '/' + condition + '/' + version +'/rep' + str(c)
+		
+		#copy all the input files 
+		input_files = [f for f in listdir(input_dir) if f.endswith(".in")]
+		for filename in input_files: 
+			f.write("cp %s %s \n" % (input_dir+'/'+filename, target_dir+'/'+filename))
+		
+		#change the job name on the 4th line of sbatch
+		jobname = 'GRP40_'+condition+'_'+version+'_'+reps
+		f.write('sed s/# --job-name=gpr40_binary/--job-name=%s/ %s/sim_mdstep.sbatch > %s/sim_mdstep.sbatch \n' % (jobname, input_dir, target_dir))
+		f.write('chmod +x %s/sim_mdstep.sbatch \n' % (target_dir)) #give it executible persmission
+		
+		#do the symlinks for the system files from the prep folder
+		prep_dir = target_dir = directory + '/' + condition + '/' + version +'/prep'
+		f.write('ln -s %s/system.prmtop %s/system.prmtop' %(prep_dir, target_dir))
+		f.write('ln -s %s/system.inpcrd %s/system.inpcrd' %(prep_dir, target_dir))
+		f.write('ln -s %s/system.psf %s/system.psf' %(prep_dir, target_dir))
+	f.close() 
