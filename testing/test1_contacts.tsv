@@ -1,0 +1,9 @@
+# total_frames:4
+#A 100%, B 50%, C 25%
+0	v	A	A
+0	v	B	B
+1	v	A	A
+1	v	B	B
+2	v	A	A
+3	v	A	A
+3	v	C	C
