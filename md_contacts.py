@@ -1,8 +1,8 @@
 import csv
 
-def run_compare(condition1, condition2):
+def run_compare(condition1, condition2,name):
 	out = compare_conditions(condition1, condition2)
-	with open('testing/dataout.tsv', 'w') as csvfile:
+	with open(name, 'w') as csvfile:
 		csvout = csv.writer(csvfile, delimiter='\t')
 		for row in out:
 			print(row)
@@ -11,7 +11,7 @@ def run_compare(condition1, condition2):
 def run_compare_test():
 	condition1 = ['testing/test1_contacts.tsv','testing/test2_contacts.tsv']
 	condition2 = ['testing/test1_contacts.tsv','testing/test3_contacts.tsv']
-	run_compare(condition1, condition2)
+	run_compare(condition1, condition2, 'testing/dataout.tsv')
 
 def compare_conditions(files1, files2):
 	freq1 = frequencies_over_reps(files1)
