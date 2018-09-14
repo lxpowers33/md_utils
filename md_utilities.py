@@ -5,6 +5,8 @@ from os import listdir
 from os.path import isfile, join
 from vmd import *
 import utils
+import datetime
+import json
 
 ####################################################
 #####             Load Trajectories            #####
@@ -143,7 +145,7 @@ def projection_metric(selections, mol_id):
 ####################################################
 
 TM1TO4 = 'protein and name CA and (resid 4 to 37 or resid 39 to 69 or resid 75 to 110 or resid 119 to 146)'
-def get_data_over_selections(infos, rep, analyses, dim, align_sel=TM1TO4): 
+def get_data_over_selections(info, rep, align_sel=TM1TO4): 
     '''
     conditions_info should contain name, psf, paths, reps, selections
     '''
@@ -168,8 +170,9 @@ def get_data_over_selections(infos, rep, analyses, dim, align_sel=TM1TO4):
 
     #perform all the anlyses using the selections in info 
     datasets = []
-    for i in range(0, len(analyses)):
-        datasets.append(analyses[i](info[i]['selections'], mol_id)) 
+    for i in range(0, len(info['analyses'])):
+        analysis = info['analyses'][i]
+        datasets.append(analysis(info['selections'][i], mol_id)) 
 
     #combine data from the different analyses
     dataout = pd.concat(datasets, axis=1)
@@ -178,4 +181,38 @@ def get_data_over_selections(infos, rep, analyses, dim, align_sel=TM1TO4):
     vmd.molecule.delete(mol_id)
 
     return dataout, False
+
+def run_analyses(working_dir, save_dir, save_name, conditions, align_sel):
+    '''
+    Output 
+        /savedir
+            /conditions[0]['name']
+                save_name_1.pkl
+                save_name_2.pkl
+                ...
+            /conditions[0]['name']
+            etc. 
+
+    will write pkl files containing pandas dataframes
+    Each column is a analyses and selection
+    Each row is a nanosecond
+    '''
+    #write log file for analyses
+    f = open(working_dir+'/'+save_name+".log", "a")
+    f.write('\n \n \n'+'Log for data in '+save_name)
+    f.write(datetime.datetime.now().strftime("%c")+'\n')
+    f.write(json.dumps([c['name'] for c in conditions])+'\n')
+    f.write(json.dumps(analyses)+'\n')
+    f.write(json.dumps(conditions[0]['selections'])+'\n')
+    f.close()
+    #collect data
+    for condition in conditions: 
+        condition_dir = '{}/{}/{}'.format(working_dir, save_dir, condition['name'])
+        for rep in range(1,condition['reps']+1): 
+            dataout, err = get_data_over_selections(condition, rep, align_sel)
+            if (not os.path.exists(condition_dir)): 
+                os.makedirs(condition_dir)
+            #pickle and save
+            if (not err):
+                dataout.to_pickle(condition_dir+'/{}_{}.pkl'.format(save_name, rep))
 
