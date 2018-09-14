@@ -74,49 +74,9 @@ def rmsd_pd_wrapper(sel, molid):
     dataout = pd.DataFrame(data, columns = ['rmsd'])
     return dataout
 
-def pair_dist_pd_wrapper(selections, molid): 
-    names = []
-    data = np.zeros((molecule.numframes(molid),len(selections)))
-    for t in range(molecule.numframes(molid)):
-        i = 0
-        for item in selections: 
-            sel1 = atomsel(item['sel1'], molid=molid, frame=t)
-            sel2 = atomsel(item['sel2'], molid=molid, frame=t)
-            data[t, i] = utils._calcdist(sel1, sel2)
-            i = i + 1
-    dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
-    return dataout
-
 ####################################################
-#####            Analysis over Conditions      #####
+#####            Distance analysis             #####
 ####################################################
-
-TM1TO4 = 'protein and name CA and (resid 4 to 37 or resid 39 to 69 or resid 75 to 110 or resid 119 to 146)'
-def get_data_over_selections(info, rep, analysis, dim, align_sel=TM1TO4): 
-    '''
-    conditions_info should contain name, psf, paths, reps, selections
-    '''
-    sname = join(info['path'], 'prep', info['psf'])
-    tname = join(info['path'], 'rep'+str(rep), info['nc'])
-    if not os.path.isfile(sname):
-        print('file does not exist '+sname)
-        return [], True
-    if not os.path.isfile(tname):
-        print('file does not exist '+tname)
-        return [], True
-
-    #load and align trajectories
-    load_traj(sname, tname, stop = -1, stride = 5)
-    #check that the mol id is 0
-    mol_id = vmd.molecule.get_top()
-    print('mold ID is '+str(mol_id))
-
-    align_to_initial(align_sel, [mol_id])
-    
-    dataout = analysis(info['selections'], mol_id)
-    vmd.molecule.delete(mol_id)
-
-    return dataout, False
 
 def atom_xyz(atoms, mol_id):
     '''
@@ -136,3 +96,86 @@ def atom_xyz(atoms, mol_id):
 
     dataout = pd.DataFrame(data, columns = labels)
     return dataout
+
+def pair_dist_pd_wrapper(selections, molid): 
+    """
+    Selections [{'sel1':'', 'sel2':'', 'name':''},{'sel1':'', 'sel2':''}]
+    """
+    data = np.zeros((molecule.numframes(molid),len(selections)))
+    for t in range(molecule.numframes(molid)):
+        i = 0
+        for item in selections: 
+            sel1 = atomsel(item['sel1'], molid=molid, frame=t)
+            sel2 = atomsel(item['sel2'], molid=molid, frame=t)
+            data[t, i] = utils._calcdist(sel1, sel2)
+            i = i + 1
+    dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
+    return dataout
+
+def projection_metric(selections, mol_id):
+    """
+    Selections [{'ref1':'', 'ref2':'', 'target':'', 'name':''},{'sel1':'', 'sel2':''}]
+    
+    Measures the projection from target-ref1 onto ref2-ref1
+    ref1------x ref2
+      \   ^
+       \  |
+        \ |
+         x
+        target
+
+    """
+    data = np.zeros((molecule.numframes(molid),len(selections)))
+    for t in range(molecule.numframes(molid)):
+        i = 0
+        for item in selections: 
+            ref1 = utils._vectorize_coords(atomsel(item['ref1'], molid=molid, frame=t))
+            ref2 = utils._vectorize_coords(atomsel(item['ref2'], molid=molid, frame=t))
+            target = utils._vectorize_coords(atomsel(item['target'], molid=molid, frame=t))
+            data[t, i] = utils.v_projection(target - ref1, ref2 - ref1) #project 1st onto 2nd
+            i = i + 1
+    dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
+    return dataout
+
+
+####################################################
+#####            Analysis over Conditions      #####
+####################################################
+
+TM1TO4 = 'protein and name CA and (resid 4 to 37 or resid 39 to 69 or resid 75 to 110 or resid 119 to 146)'
+def get_data_over_selections(infos, rep, analyses, dim, align_sel=TM1TO4): 
+    '''
+    conditions_info should contain name, psf, paths, reps, selections
+    '''
+    sname = join(info['path'], 'prep', info['psf'])
+    tname = join(info['path'], 'rep'+str(rep), info['nc'])
+    if not os.path.isfile(sname):
+        print('file does not exist '+sname)
+        return [], True
+    if not os.path.isfile(tname):
+        print('file does not exist '+tname)
+        return [], True
+
+    #load and align trajectories
+    load_traj(sname, tname, stop = -1, stride = 5)
+
+    #get the molid (just lodaded will be on top)
+    mol_id = vmd.molecule.get_top()
+
+    #align if desired
+    if (align_sel != None):
+        align_to_initial(align_sel, [mol_id])
+
+    #perform all the anlyses using the selections in info 
+    datasets = []
+    for i in range(0, len(analyses)):
+        datasets.append(analyses[i](info[i]['selections'], mol_id)) 
+
+    #combine data from the different analyses
+    dataout = pd.concat(datasets, axis=1)
+
+    #delete the molecule
+    vmd.molecule.delete(mol_id)
+
+    return dataout, False
+

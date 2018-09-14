@@ -39,6 +39,18 @@ def _calcdist(atomsel1, atomsel2):
 #####                Geometry                  #####
 ####################################################
 
+def v_projection(a, b):
+    """
+    The vector projection of a onto b 
+    Parameters
+    a: (numpy array nx1) the vector to project
+    b: (numpy array nx1) the vector to project onto
+    Return: scalar
+    """
+    s = np.dot(a,b) / np.linalg.norm(b)
+    return s
+
+
 def measure_dihedral_vec(p0, p1, p2, p3):
     """Function from 
     https://stackoverflow.com/questions/20305272/dihedral-torsion-angle-from-four-points-in-cartesian-coordinates-in-python
