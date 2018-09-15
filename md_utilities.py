@@ -114,7 +114,7 @@ def pair_dist_pd_wrapper(selections, molid):
     dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
     return dataout
 
-def projection_metric(selections, mol_id):
+def projection_metric(selections, molid):
     """
     Selections [{'ref1':'', 'ref2':'', 'target':'', 'name':''},{'sel1':'', 'sel2':''}]
     
@@ -134,7 +134,7 @@ def projection_metric(selections, mol_id):
             ref1 = utils._vectorize_coords(atomsel(item['ref1'], molid=molid, frame=t))
             ref2 = utils._vectorize_coords(atomsel(item['ref2'], molid=molid, frame=t))
             target = utils._vectorize_coords(atomsel(item['target'], molid=molid, frame=t))
-            data[t, i] = utils.v_projection(target - ref1, ref2 - ref1) #project 1st onto 2nd
+            data[t, i] = utils.v_projection(target.T - ref1.T, ref2.T - ref1.T) #project 1st onto 2nd
             i = i + 1
     dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
     return dataout
@@ -202,7 +202,7 @@ def run_analyses(working_dir, save_dir, save_name, conditions, align_sel):
     f.write('\n \n \n'+'Log for data in '+save_name)
     f.write(datetime.datetime.now().strftime("%c")+'\n')
     f.write(json.dumps([c['name'] for c in conditions])+'\n')
-    f.write(json.dumps(analyses)+'\n')
+    f.write(json.dumps([str(c['analyses']) for c in conditions])+'\n')
     f.write(json.dumps(conditions[0]['selections'])+'\n')
     f.close()
     #collect data

@@ -1,4 +1,5 @@
 import numpy as np
+from IPython import embed
 
 ####################################################
 #####                Basic                     #####
@@ -47,7 +48,7 @@ def v_projection(a, b):
     b: (numpy array nx1) the vector to project onto
     Return: scalar
     """
-    s = np.dot(a,b) / np.linalg.norm(b)
+    s = np.sum(a*b)  / np.linalg.norm(b)
     return s
 
 
