@@ -145,22 +145,10 @@ def projection_metric(selections, molid):
 ####################################################
 
 TM1TO4 = 'protein and name CA and (resid 4 to 37 or resid 39 to 69 or resid 75 to 110 or resid 119 to 146)'
-def get_data_over_selections(info, rep, align_sel=TM1TO4): 
+def get_data_over_selections(info, align_sel=TM1TO4): 
     '''
     conditions_info should contain name, psf, paths, reps, selections
     '''
-    sname = join(info['path'], 'prep', info['psf'])
-    tname = join(info['path'], 'rep'+str(rep), info['nc'])
-    if not os.path.isfile(sname):
-        print('file does not exist '+sname)
-        return [], True
-    if not os.path.isfile(tname):
-        print('file does not exist '+tname)
-        return [], True
-
-    #load and align trajectories
-    load_traj(sname, tname, stop = -1, stride = 5)
-
     #get the molid (just lodaded will be on top)
     mol_id = vmd.molecule.get_top()
 
@@ -177,12 +165,18 @@ def get_data_over_selections(info, rep, align_sel=TM1TO4):
     #combine data from the different analyses
     dataout = pd.concat(datasets, axis=1)
 
-    #delete the molecule
-    vmd.molecule.delete(mol_id)
-
     return dataout, False
 
-def run_analyses(working_dir, save_dir, save_name, conditions, align_sel):
+def run_analysis_crystal(working_dir, save_dir, save_name, info, align_sel):
+    out_dir = '{}/{}'.format(working_dir, save_dir)
+    molecule.load(info['file_type'], info['struct_file_name'])
+    dataout, err = get_data_over_selections(info, align_sel)
+    vmd.molecule.delete(mol_id)
+    #Pickle and save
+    if (not err):
+        dataout.to_pickle(out_dir+'/{}.pkl'.format(save_name))
+
+def run_analysis_traj(working_dir, save_dir, save_name, conditions, align_sel):
     '''
     Output 
         /savedir
@@ -209,10 +203,25 @@ def run_analyses(working_dir, save_dir, save_name, conditions, align_sel):
     for condition in conditions: 
         condition_dir = '{}/{}/{}'.format(working_dir, save_dir, condition['name'])
         for rep in range(1,condition['reps']+1): 
-            dataout, err = get_data_over_selections(condition, rep, align_sel)
+            #Load the trajectory
+            sname = join(condition['path'], 'prep', condition['psf'])
+            tname = join(condition['path'], 'rep'+str(rep), condition['nc'])
+            if not os.path.isfile(sname):
+                print('file does not exist '+sname)
+                return [], True
+            if not os.path.isfile(tname):
+                print('file does not exist '+tname)
+                return [], True
+            #load and align trajectories
+            load_traj(sname, tname, stop = -1, stride = 5)
+            #get the data
+            dataout, err = get_data_over_selections(condition, align_sel)
+            #Delete the molecule
+            vmd.molecule.delete(mol_id)
+            #Make the save directory if it doesn't exist
             if (not os.path.exists(condition_dir)): 
                 os.makedirs(condition_dir)
-            #pickle and save
+            #Pickle and save
             if (not err):
                 dataout.to_pickle(condition_dir+'/{}_{}.pkl'.format(save_name, rep))
 
