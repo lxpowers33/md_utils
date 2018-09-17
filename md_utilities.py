@@ -169,7 +169,7 @@ def get_data_over_selections(info, align_sel=TM1TO4):
 
 def run_analysis_crystal(working_dir, save_dir, save_name, info, align_sel):
     out_dir = '{}/{}'.format(working_dir, save_dir)
-    molecule.load(info['file_type'], info['struct_file_name'])
+    mol_id = molecule.load(info['file_type'], info['struct_file_name'])
     dataout, err = get_data_over_selections(info, align_sel)
     vmd.molecule.delete(mol_id)
     #Pickle and save
