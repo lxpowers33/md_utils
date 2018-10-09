@@ -313,21 +313,34 @@ def fast_pair_distance(selections, molid):
     """
     Selections [{'sel1':'', 'sel2':'', 'name':''},{'sel1':'', 'sel2':''}]
     """
-    data = np.zeros((molecule.numframes(molid),len(selections)))
-
     unique_atoms = set()
     #dump all the selections into a set
     for pair in selections:
-        unique_atoms.add(pair['sel1'])
-        unique_atoms.add(pair['sel2'])
+        unique_atoms.add('( '+pair['sel1']+' )')
+        unique_atoms.add('( '+pair['sel2']+' )')
 
-    atom_masks = {}
-    for atom in unique_atoms
-        mask = atomselect(molid 0, atom)
-        atom_masks[atom] = mask
+    sel_to_index = {}
+    for atom in unique_atoms:
+        sel_to_index[atom] = np.nonzero(vmdnumpy.atomselect(molid, 0, atom))[0][0] 
 
-    embed()    
-    dataout = False
+    sel_all = ' or '.join(list(unique_atoms))
+    mask = vmdnumpy.atomselect(molid, 0, sel_all)
+    atom_index = np.nonzero(mask)[0]
+    index_to_i = {x:i for i,x in enumerate(atom_index)}
+
+    n_frames = molecule.numframes(molid)
+    n_atoms = len(unique_atoms)
+    positions = np.zeros((n_atoms, 3, n_frames))
+    for f in range(0, n_frames):
+        positions[:,:,f] = np.compress(mask, vmdnumpy.timestep(molid, f), axis=0)
+
+    data = np.zeros((n_frames,len(selections)))
+    s = 0
+    for item in selections: 
+        i = index_to_i[sel_to_index['( '+item['sel1']+' )']]
+        j = index_to_i[sel_to_index['( '+item['sel2']+' )']]
+        data[:, s] = np.sqrt(np.sum((positions[i,:,:] - positions[j,:,:])**2, axis=0))
+        s = s + 1
+    dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
     return dataout
-
 
