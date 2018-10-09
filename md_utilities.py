@@ -139,7 +139,6 @@ def projection_metric(selections, molid):
     dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
     return dataout
 
-
 ####################################################
 #####            Analysis over Conditions      #####
 ####################################################
@@ -224,4 +223,110 @@ def run_analysis_traj(working_dir, save_dir, save_name, conditions, align_sel):
             #Pickle and save
             if (not err):
                 dataout.to_pickle(condition_dir+'/{}_{}.pkl'.format(save_name, rep))
+
+####################################################
+#####            Development                   #####
+####################################################
+
+
+def calc_average_structure(molids, psf, minframe=0):
+    """
+        # From Robin - suggestion: should calculate per replicate average structure.
+        # Then, compare each average structure to the per condition average to determine variation across replicates.
+    Calculates the average structure for a given trajectory and psf
+
+    Args:
+        molids (list of int): Trajectory IDs to average
+        psf (str): Path to psf file describing this topology
+        minframe (int): Frame to start computation from
+    """
+    data = []
+    start_frame = minframe
+    for m in molids:
+        if start_frame >= molecule.numframes(m[0]): continue
+        for f in range(start_frame, molecule.numframes(m[0])):
+            data.append(timestep(m[0], f))
+    avg = np.mean(np.stack(data), axis=0)
+
+    # Now we have average coords, so set them in a new molecule
+    if "_trans" in psf:
+        pdb = psf.replace("_trans.psf", ".pdb")
+    else:
+        pdb = psf.replace(".psf", ".pdb")
+
+    outid = molecule.load('psf', psf, 'pdb', pdb)
+    atomsel("all", outid).set('x', avg[:,0])
+    atomsel("all", outid).set('y', avg[:,1])
+    atomsel("all", outid).set('z', avg[:,2])
+    return outid
+
+def calc_rmsf_to_average(molid, avg, selstr, minframe=0, calc_rmsd=False):
+    """
+        # From Robin
+    Calculates the RMSF of an atom selection 
+
+    Args:
+        molid (int): VMD molecule ID to calculate
+        avg (int): VMD molecule ID of average structure
+        selstr (str): Selection to compute RMSF over
+        minframe (int): Frame to start computation from
+    """
+    mask = atomselect(avg, 0, selstr)
+    ref = np.compress(mask, timestep(avg,0), axis=0)
+
+    if molecule.numframes(molid) <= minframe:
+        print("Only %d frames in %d" % (molecule.numframes(molid), molid))
+        return None
+
+    N = len(ref)
+    rmsf = np.zeros(N)
+
+    rmsds = []
+
+    for f in range(minframe, molecule.numframes(molid)):
+        frame = np.compress(mask, timestep(molid, f), axis=0)
+        rmsf += np.sum((frame-ref)**2, axis=1) #removed the extra squareroot
+        if calc_rmsd:
+            MSD = np.sum(np.sum((frame-ref)**2, axis=1))/N
+            rmsds.append(np.sqrt(MSD))
+
+    rmsf /= (molecule.numframes(molid)-minframe)
+    rmsf = np.sqrt(rmsf)
+
+    return rmsf, rmsds
+
+def wrapper_rmsf():
+    return False
+
+def wrapper_rmsd_average():
+    return False
+
+def fast_pair_distance(selections, molid):
+    #make a dictionairy of base atoms 
+    #generate a mask of the relevent atoms 
+    #extract those positions for a particular frame 
+        #frame = numpy.compress(mask, vmdnumpy.timestep(molid, f), axis=0)
+        #add positions to array with time dimension 
+    #for each pair use the relevent row to perform the operations
+        #numpy.sqrt(numpy.sum((data[i,:,:] - data[j,:,:])**2, axis=1))
+    """
+    Selections [{'sel1':'', 'sel2':'', 'name':''},{'sel1':'', 'sel2':''}]
+    """
+    data = np.zeros((molecule.numframes(molid),len(selections)))
+
+    unique_atoms = set()
+    #dump all the selections into a set
+    for pair in selections:
+        unique_atoms.add(pair['sel1'])
+        unique_atoms.add(pair['sel2'])
+
+    atom_masks = {}
+    for atom in unique_atoms
+        mask = atomselect(molid 0, atom)
+        atom_masks[atom] = mask
+
+    embed()    
+    dataout = False
+    return dataout
+
 
