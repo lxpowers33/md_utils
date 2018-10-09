@@ -217,7 +217,8 @@ def run_analysis_traj(working_dir, save_dir, save_name, conditions, align_sel):
             #get the data
             dataout, err = get_data_over_selections(condition, align_sel)
             #Delete the molecule
-            vmd.molecule.delete(mol_id)
+            mol_id = vmd.molecule.get_top()
+	    vmd.molecule.delete(mol_id)
             #Make the save directory if it doesn't exist
             if (not os.path.exists(condition_dir)): 
                 os.makedirs(condition_dir)
