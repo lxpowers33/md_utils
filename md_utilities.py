@@ -71,9 +71,15 @@ def rmsd_from_initial(sel, molid):
         rmsds[t] = sel_0.rmsd(sel_t)
     return rmsds
 
-def rmsd_pd_wrapper(sel, molid):
-    data = rmsd_from_initial(sel, molid)
-    dataout = pd.DataFrame(data, columns = ['rmsd'])
+def rmsd_pd_wrapper(selections, molid):
+    nframes = molecule.numframes(molid)
+    data = np.zeros((nframes,len(selections)))
+    for t in range(0, nframes):
+        i = 0
+        for item in selections: 
+            data[t,i] = rmsd_from_initial(item['sel1'], molid)
+            i = i + 1
+    dataout = pd.DataFrame(data, columns = [p['name']+'_rmsd' for p in selections])
     return dataout
 
 ####################################################
@@ -217,7 +223,7 @@ def run_analysis_traj(working_dir, save_dir, save_name, conditions, align_sel):
             dataout, err = get_data_over_selections(condition, align_sel)
             #Delete the molecule
             mol_id = vmd.molecule.get_top()
-	    vmd.molecule.delete(mol_id)
+	        vmd.molecule.delete(mol_id)
             #Make the save directory if it doesn't exist
             if (not os.path.exists(condition_dir)): 
                 os.makedirs(condition_dir)
@@ -246,7 +252,7 @@ def calc_average_structure(molids, psf, minframe=0):
     for m in molids:
         if start_frame >= molecule.numframes(m[0]): continue
         for f in range(start_frame, molecule.numframes(m[0])):
-            data.append(timestep(m[0], f))
+            data.append(vmdnumpy.timestep(m[0], f))
     avg = np.mean(np.stack(data), axis=0)
 
     # Now we have average coords, so set them in a new molecule
@@ -272,8 +278,8 @@ def calc_rmsf_to_average(molid, avg, selstr, minframe=0, calc_rmsd=False):
         selstr (str): Selection to compute RMSF over
         minframe (int): Frame to start computation from
     """
-    mask = atomselect(avg, 0, selstr)
-    ref = np.compress(mask, timestep(avg,0), axis=0)
+    mask = vmdnumpy.atomselect(avg, 0, selstr)
+    ref = np.compress(mask, vmdnumpy.timestep(avg,0), axis=0)
 
     if molecule.numframes(molid) <= minframe:
         print("Only %d frames in %d" % (molecule.numframes(molid), molid))
@@ -284,8 +290,9 @@ def calc_rmsf_to_average(molid, avg, selstr, minframe=0, calc_rmsd=False):
 
     rmsds = []
 
+    embed()
     for f in range(minframe, molecule.numframes(molid)):
-        frame = np.compress(mask, timestep(molid, f), axis=0)
+        frame = np.compress(mask, vmdnumpy.timestep(molid, f), axis=0)
         rmsf += np.sum((frame-ref)**2, axis=1) #removed the extra squareroot
         if calc_rmsd:
             MSD = np.sum(np.sum((frame-ref)**2, axis=1))/N
@@ -296,11 +303,33 @@ def calc_rmsf_to_average(molid, avg, selstr, minframe=0, calc_rmsd=False):
 
     return rmsf, rmsds
 
-def wrapper_rmsf():
-    return False
+def rmsd_average_wrapper(selections, molid):
+    """
+    Selections [{'sel1':'', 'name':''},{'sel1':'', 'name':''}]
+    """
+    avg_id = calc_average_structure(molid, selections[0]['psf'], minframe=0)
 
-def wrapper_rmsd_average():
-    return False
+    data = np.zeros((molecule.numframes(molid),len(selections)*2))
+
+    i = 0
+    for sel in selections:
+        rmsf, rmsds = calc_rmsf_to_average(molid, avg, sel['sel1'], minframe=0, calc_rmsd=True)
+        data[:,i] = rmsds
+        i = i + 1
+        data[0,i] = np.mean(rmsf)
+        i = i + 1
+
+    embed()
+    names = []
+    for p in selections:
+        names.add(p['name']+'_avg_rmsd')
+        names.add(p['name']+'_avg_rmsf')
+    dataout = pd.DataFrame(data, columns = names)
+
+    vmd.molecule.delete(avg_id)
+
+    2/0
+    return dataout
 
 def fast_pair_distance(selections, molid):
     #make a dictionairy of base atoms 
