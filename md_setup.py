@@ -54,7 +54,7 @@ def build_new_simulation_directory(directory, config):
 
 from os import listdir
 
-def setup_simulation_files(directory, condition, version, reps, input_dir):
+def setup_simulation_files(directory, condition, version, reps, input_dir, project):
 	'''
 	Usage: setup_simulation_files(directory, 'MK6_loop', 'v1', 5, 'input_dir')
 	'''
@@ -69,7 +69,7 @@ def setup_simulation_files(directory, condition, version, reps, input_dir):
 			f.write("cp %s %s \n" % (input_dir+'/'+filename, target_dir+'/'+filename))
 		
 		#change the job name on the 4th line of sbatch
-		jobname = 'GRP40_'+condition+'_'+version+'_'+str(c)
+		jobname = project+'_'+condition+'_'+version+'_'+str(c)
 		f.write("sed 's/#SBATCH --job-name=gpr40_binary/#SBATCH --job-name=%s/' %s/sim_mdstep.sbatch > %s/sim_mdstep.sbatch \n" % (jobname, input_dir, target_dir))
 		f.write('chmod +x %s/sim_mdstep.sbatch \n' % (target_dir)) #give it executible persmission
 		

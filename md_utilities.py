@@ -74,11 +74,10 @@ def rmsd_from_initial(sel, molid):
 def rmsd_pd_wrapper(selections, molid):
     nframes = molecule.numframes(molid)
     data = np.zeros((nframes,len(selections)))
-    for t in range(0, nframes):
-        i = 0
-        for item in selections: 
-            data[t,i] = rmsd_from_initial(item['sel1'], molid)
-            i = i + 1
+    i = 0
+    for item in selections: 
+        data[:,i] = rmsd_from_initial(item['sel1'], molid)
+        i = i + 1
     dataout = pd.DataFrame(data, columns = [p['name']+'_rmsd' for p in selections])
     return dataout
 
@@ -164,7 +163,9 @@ def get_data_over_selections(info, align_sel=TM1TO4):
     #perform all the anlyses using the selections in info 
     datasets = []
     for i in range(0, len(info['analyses'])):
+	print('running analysis')
         analysis = info['analyses'][i]
+	print(analysis)
         datasets.append(analysis(info['selections'][i], mol_id)) 
 
     #combine data from the different analyses
@@ -219,11 +220,12 @@ def run_analysis_traj(working_dir, save_dir, save_name, conditions, align_sel):
                 return [], True
             #load and align trajectories
             load_traj(sname, tname, stop = -1, stride = 5)
-            #get the data
+            print('loaded trajectory successfully')
+	    #get the data
             dataout, err = get_data_over_selections(condition, align_sel)
             #Delete the molecule
             mol_id = vmd.molecule.get_top()
-	        vmd.molecule.delete(mol_id)
+	    vmd.molecule.delete(mol_id)
             #Make the save directory if it doesn't exist
             if (not os.path.exists(condition_dir)): 
                 os.makedirs(condition_dir)
@@ -249,11 +251,15 @@ def calc_average_structure(molids, psf, minframe=0):
     """
     data = []
     start_frame = minframe
+    total_frames = 0
     for m in molids:
-        if start_frame >= molecule.numframes(m[0]): continue
-        for f in range(start_frame, molecule.numframes(m[0])):
-            data.append(vmdnumpy.timestep(m[0], f))
-    avg = np.mean(np.stack(data), axis=0)
+        if start_frame >= molecule.numframes(m): continue
+        summed = vmdnumpy.timestep(m, start_frame)
+	total_frames = total_frames + 1
+	for f in range(start_frame+1, molecule.numframes(m)):
+            summed  = vmdnumpy.timestep(m, f) + summed
+	    total_frames = total_frames + 1		
+    avg = summed/total_frames
 
     # Now we have average coords, so set them in a new molecule
     if "_trans" in psf:
@@ -287,10 +293,7 @@ def calc_rmsf_to_average(molid, avg, selstr, minframe=0, calc_rmsd=False):
 
     N = len(ref)
     rmsf = np.zeros(N)
-
     rmsds = []
-
-    embed()
     for f in range(minframe, molecule.numframes(molid)):
         frame = np.compress(mask, vmdnumpy.timestep(molid, f), axis=0)
         rmsf += np.sum((frame-ref)**2, axis=1) #removed the extra squareroot
@@ -307,28 +310,23 @@ def rmsd_average_wrapper(selections, molid):
     """
     Selections [{'sel1':'', 'name':''},{'sel1':'', 'name':''}]
     """
-    avg_id = calc_average_structure(molid, selections[0]['psf'], minframe=0)
-
+    avg_id = calc_average_structure([molid], selections[0]['psf'], minframe=0) 
     data = np.zeros((molecule.numframes(molid),len(selections)*2))
 
     i = 0
     for sel in selections:
-        rmsf, rmsds = calc_rmsf_to_average(molid, avg, sel['sel1'], minframe=0, calc_rmsd=True)
+        rmsf, rmsds = calc_rmsf_to_average(molid, avg_id, sel['sel1'], minframe=0, calc_rmsd=True)
         data[:,i] = rmsds
         i = i + 1
         data[0,i] = np.mean(rmsf)
         i = i + 1
 
-    embed()
     names = []
     for p in selections:
-        names.add(p['name']+'_avg_rmsd')
-        names.add(p['name']+'_avg_rmsf')
+        names.append(p['name']+'_avg_rmsd')
+        names.append(p['name']+'_avg_rmsf')
     dataout = pd.DataFrame(data, columns = names)
-
     vmd.molecule.delete(avg_id)
-
-    2/0
     return dataout
 
 def fast_pair_distance(selections, molid):
