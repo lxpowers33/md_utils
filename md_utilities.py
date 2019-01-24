@@ -219,7 +219,9 @@ def run_analysis_traj(working_dir, save_dir, save_name, conditions, align_sel):
                 print('file does not exist '+tname)
                 return [], True
             #load and align trajectories
-            load_traj(sname, tname, stop = -1, stride = 5)
+            load_stride = int(5/condition['stride']) #for analysis every nanosecond
+            #note 'stride' should be what you reimaged at 
+            load_traj(sname, tname, stop = -1, stride = load_stride) 
             print('loaded trajectory successfully')
 	    #get the data
             dataout, err = get_data_over_selections(condition, align_sel)
