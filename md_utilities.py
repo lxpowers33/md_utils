@@ -166,6 +166,11 @@ def get_data_over_selections(info, align_sel=TM1TO4):
 	print('running analysis')
         analysis = info['analyses'][i]
 	print(analysis)
+        #perform analysis level alignment
+        if 'alignments' in info:
+            alignment_sel = info['alignments'][i]
+            if alignment_sel != '':
+                align_to_initial(alignment_sel, [mol_id])
         datasets.append(analysis(info['selections'][i], mol_id)) 
 
     #combine data from the different analyses
