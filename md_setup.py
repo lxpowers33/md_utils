@@ -75,7 +75,37 @@ def setup_simulation_files(directory, condition, version, reps, input_dir, proje
 		
 		#do the symlinks for the system files from the prep folder
 		prep_dir  = directory + '/' + condition + '/' + version +'/prep'
+		for ext in ['prmtop', 'inpcrd', 'psf']:
+			f.write('cp {}/{}_dabbled.{} {}/system.{} \n'.format(prep_dir, condition, ext, prep_dir, ext))
+
 		f.write('ln -s %s/system.prmtop %s/system.prmtop \n' %(prep_dir, target_dir))
 		f.write('ln -s %s/system.inpcrd %s/system.inpcrd \n' %(prep_dir, target_dir))
 		f.write('ln -s %s/system.psf %s/system.psf \n' %(prep_dir, target_dir))
-	f.close() 
+	f.close()
+
+def add_simulation_reps(directory, condition, version, reps, input_dir, project):
+	'''
+	Usage: setup_simulation_files(directory, 'MK6_loop', 'v1', 5, 'input_dir')
+	'''
+	f = open("setup_condition.sh","w+")
+	for c in reps:
+		target_dir = directory + '/' + condition + '/' + version +'/rep' + str(c)
+		#make the replicate files
+		new_folder(target_dir)
+
+		#copy all the input files 
+		input_files = [n for n in listdir(input_dir) if n.endswith(".in")]
+		for filename in input_files: 
+			f.write("cp %s %s \n" % (input_dir+'/'+filename, target_dir+'/'+filename))
+		
+		#change the job name on the 4th line of sbatch
+		jobname = project+'_'+condition+'_'+version+'_'+str(c)
+		f.write("sed 's/#SBATCH --job-name=gpr40_binary/#SBATCH --job-name=%s/' %s/sim_mdstep.sbatch > %s/sim_mdstep.sbatch \n" % (jobname, input_dir, target_dir))
+		f.write('chmod +x %s/sim_mdstep.sbatch \n' % (target_dir)) #give it executible persmission
+		
+		#do the symlinks for the system files from the prep folder
+		prep_dir  = directory + '/' + condition + '/' + version +'/prep'
+		f.write('ln -s %s/system.prmtop %s/system.prmtop \n' %(prep_dir, target_dir))
+		f.write('ln -s %s/system.inpcrd %s/system.inpcrd \n' %(prep_dir, target_dir))
+		f.write('ln -s %s/system.psf %s/system.psf \n' %(prep_dir, target_dir))
+	f.close()  
