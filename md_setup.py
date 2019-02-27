@@ -81,7 +81,7 @@ def setup_simulation_files(directory, condition, version, reps, input_dir, proje
 		f.write('ln -s %s/system.prmtop %s/system.prmtop \n' %(prep_dir, target_dir))
 		f.write('ln -s %s/system.inpcrd %s/system.inpcrd \n' %(prep_dir, target_dir))
 		f.write('ln -s %s/system.psf %s/system.psf \n' %(prep_dir, target_dir))
-	f.close()
+	f.close() 
 
 def add_simulation_reps(directory, condition, version, reps, input_dir, project):
 	'''
