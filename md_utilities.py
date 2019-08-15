@@ -111,6 +111,8 @@ def pair_dist_pd_wrapper(selections, molid):
     data = np.zeros((molecule.numframes(molid),len(selections)))
     for t in range(molecule.numframes(molid)):
         i = 0
+        if t%100 == 0:
+            print('reached frame {} / {}'.format(t, molecule.numframes(molid)))
         for item in selections: 
             sel1 = atomsel(item['sel1'], molid=molid, frame=t)
             sel2 = atomsel(item['sel2'], molid=molid, frame=t)
@@ -213,7 +215,12 @@ def run_analysis_traj(working_dir, save_dir, save_name, conditions, align_sel):
     #collect data
     for condition in conditions: 
         condition_dir = '{}/{}/{}'.format(working_dir, save_dir, condition['name'])
-        for rep in range(1,condition['reps']+1): 
+        if type(condition['reps']) is int:
+            reps = range(1,condition['reps']+1)
+	else:
+	    reps = condition['reps']
+
+	for rep in reps: 
             #Load the trajectory
             sname = join(condition['path'], 'prep', condition['psf'])
             tname = join(condition['path'], 'rep'+str(rep), condition['nc'])
@@ -226,7 +233,11 @@ def run_analysis_traj(working_dir, save_dir, save_name, conditions, align_sel):
             #load and align trajectories
             load_stride = int(5/condition['stride']) #for analysis every nanosecond
             #note 'stride' should be what you reimaged at 
-            load_traj(sname, tname, stop = -1, stride = load_stride) 
+	    if 'end' in condition:
+		stop = condition['end']
+	    else:
+		stop = -1
+            load_traj(sname, tname, stop = stop, stride = load_stride) 
             print('loaded trajectory successfully')
 	    #get the data
             dataout, err = get_data_over_selections(condition, align_sel)
