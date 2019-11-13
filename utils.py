@@ -41,6 +41,8 @@ def _calcdist(atomsel1, atomsel2):
     
     Errors if either is empty.
     """
+    if len(atomsel1) == 0 or len(atomsel2) == 0:
+         return None
     XYZ1 = _vectorize_coords(atomsel1)
     XYZ2 = _vectorize_coords(atomsel2)
     return min(np.linalg.norm(xyz1-xyz2)

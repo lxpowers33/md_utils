@@ -75,6 +75,9 @@ def setup_simulation_files(directory, condition, version, reps, input_dir, proje
 		
 		#do the symlinks for the system files from the prep folder
 		prep_dir  = directory + '/' + condition + '/' + version +'/prep'
+		for ext in ['prmtop', 'inpcrd', 'psf']:
+			f.write('cp {}/{}_dabbled.{} {}/system.{} \n'.format(prep_dir, condition, ext, prep_dir, ext))
+
 		f.write('ln -s %s/system.prmtop %s/system.prmtop \n' %(prep_dir, target_dir))
 		f.write('ln -s %s/system.inpcrd %s/system.inpcrd \n' %(prep_dir, target_dir))
 		f.write('ln -s %s/system.psf %s/system.psf \n' %(prep_dir, target_dir))
@@ -88,7 +91,7 @@ def add_simulation_reps(directory, condition, version, reps, input_dir, project)
 	for c in reps:
 		target_dir = directory + '/' + condition + '/' + version +'/rep' + str(c)
 		#make the replicate files
-		new_folder(directory_version+'/rep'+str(i))
+		new_folder(target_dir)
 
 		#copy all the input files 
 		input_files = [n for n in listdir(input_dir) if n.endswith(".in")]
@@ -105,4 +108,4 @@ def add_simulation_reps(directory, condition, version, reps, input_dir, project)
 		f.write('ln -s %s/system.prmtop %s/system.prmtop \n' %(prep_dir, target_dir))
 		f.write('ln -s %s/system.inpcrd %s/system.inpcrd \n' %(prep_dir, target_dir))
 		f.write('ln -s %s/system.psf %s/system.psf \n' %(prep_dir, target_dir))
-	f.close() 
+	f.close()  
