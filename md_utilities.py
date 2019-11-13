@@ -182,6 +182,7 @@ def get_data_over_selections(info, align_sel=TM1TO4):
 
 def run_analysis_crystal(working_dir, save_dir, save_name, info, align_sel):
     out_dir = '{}/{}'.format(working_dir, save_dir)
+    print(info['file_type'], info['struct_file_name'])
     mol_id = molecule.load(info['file_type'], info['struct_file_name'])
     dataout, err = get_data_over_selections(info, align_sel)
     vmd.molecule.delete(mol_id)
@@ -225,11 +226,17 @@ def run_analysis_traj(working_dir, save_dir, save_name, conditions, align_sel):
             sname = join(condition['path'], 'prep', condition['psf'])
             tname = join(condition['path'], 'rep'+str(rep), condition['nc'])
             if not os.path.isfile(sname):
-                print('file does not exist '+sname)
-                return [], True
+                #try alternate format
+                sname = join(condition['path'], str(rep), condition['psf'])
+                if not os.path.isfile(sname):
+                    print('file does not exist '+sname)
+                    return [], True
             if not os.path.isfile(tname):
-                print('file does not exist '+tname)
-                return [], True
+                #try alternate format
+                tname = join(condition['path'], str(rep), condition['nc'])
+                if not os.path.isfile(tname):
+                    print('file does not exist '+tname)
+                    return [], True
             #load and align trajectories
             load_stride = int(5/condition['stride']) #for analysis every nanosecond
             #note 'stride' should be what you reimaged at 
@@ -278,17 +285,19 @@ def calc_average_structure(molids, psf, minframe=0):
             summed  = vmdnumpy.timestep(m, f) + summed
 	    total_frames = total_frames + 1		
     avg = summed/total_frames
-
+    print(avg)
     # Now we have average coords, so set them in a new molecule
-    if "_trans" in psf:
-        pdb = psf.replace("_trans.psf", ".pdb")
-    else:
-        pdb = psf.replace(".psf", ".pdb")
+    #if "_trans" in psf:
+    #    pdb = psf.replace("_trans.psf", ".pdb")
+    #else:
+    #    pdb = psf.replace(".psf", ".pdb")
 
-    outid = molecule.load('psf', psf, 'pdb', pdb)
-    atomsel("all", outid).set('x', avg[:,0])
-    atomsel("all", outid).set('y', avg[:,1])
-    atomsel("all", outid).set('z', avg[:,2])
+    #outid = molecule.load('psf', psf) #, 'pdb', pdb)
+    outid = molids[0]
+    f = molecule.numframes(outid) - 1
+    atomsel("all", molid=outid, frame=f).set('x', avg[:,0])
+    atomsel("all", molid=outid, frame=f).set('y', avg[:,1])
+    atomsel("all", molid=outid, frame=f).set('z', avg[:,2])
     return outid
 
 def calc_rmsf_to_average(molid, avg, selstr, minframe=0, calc_rmsd=False):
@@ -302,8 +311,12 @@ def calc_rmsf_to_average(molid, avg, selstr, minframe=0, calc_rmsd=False):
         selstr (str): Selection to compute RMSF over
         minframe (int): Frame to start computation from
     """
+    f_avg = molecule.numframes(molid)-1 #temporary fix
     mask = vmdnumpy.atomselect(avg, 0, selstr)
-    ref = np.compress(mask, vmdnumpy.timestep(avg,0), axis=0)
+    print(molid, avg, selstr, np.sum(mask))
+    print(molecule.numframes(molid), molecule.numframes(avg))
+    print(len(atomsel("all", avg)))
+    ref = np.compress(mask, vmdnumpy.timestep(avg,f_avg), axis=0)
 
     if molecule.numframes(molid) <= minframe:
         print("Only %d frames in %d" % (molecule.numframes(molid), molid))
@@ -321,7 +334,7 @@ def calc_rmsf_to_average(molid, avg, selstr, minframe=0, calc_rmsd=False):
 
     rmsf /= (molecule.numframes(molid)-minframe)
     rmsf = np.sqrt(rmsf)
-
+    print(rmsf)
     return rmsf, rmsds
 
 def rmsd_average_wrapper(selections, molid):
@@ -337,6 +350,7 @@ def rmsd_average_wrapper(selections, molid):
         data[:,i] = rmsds
         i = i + 1
         data[0,i] = np.mean(rmsf)
+        print('final rmsf:', np.mean(rmsf))
         i = i + 1
 
     names = []
@@ -344,7 +358,7 @@ def rmsd_average_wrapper(selections, molid):
         names.append(p['name']+'_avg_rmsd')
         names.append(p['name']+'_avg_rmsf')
     dataout = pd.DataFrame(data, columns = names)
-    vmd.molecule.delete(avg_id)
+    #vmd.molecule.delete(avg_id)
     return dataout
 
 def fast_pair_distance(selections, molid):
