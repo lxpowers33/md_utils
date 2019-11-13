@@ -17,6 +17,16 @@ def _sliding_mean(data_array, window):
         new_list.append(avg)
     return np.array(new_list)
 
+def _sliding_median(data_array, window):
+    """Robin's smoothing function"""
+    new_list = []
+    for i in range(data_array.shape[0]):
+        indices = range(max(i - window + 1, 0),
+                        min(i + window + 1, len(data_array)))
+        avg = np.median(data_array[indices])
+        new_list.append(avg)
+    return np.array(new_list)
+
 def _vectorize_coords(atomsel):
     """
     Returns N_atoms x 3 np.array

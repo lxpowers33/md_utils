@@ -28,7 +28,7 @@ def _simpleaxis(ax):
 
 # Trace
 def add_time_trace(ax, A, labels = '', colors = 'k', smoothing = 20,
-                   alpha=.2, alpha_smooth=1, lw=1, lw_smooth=2):
+                   alpha=.2, alpha_smooth=1, lw=1, lw_smooth=2, smoothing_type = 'mean'):
     if type(colors) == str:
         colors = [colors] * len(A)
     if type(labels) == str:
@@ -37,7 +37,11 @@ def add_time_trace(ax, A, labels = '', colors = 'k', smoothing = 20,
         ax.plot(dists, c = color, lw = lw, alpha = alpha)
         #embed()
         if smoothing:
-            ax.plot(utils._sliding_mean(dists, smoothing), c = color, lw = lw_smooth, alpha = alpha_smooth, label = label)
+            if smoothing_type == 'mean':
+                ax.plot(utils._sliding_mean(dists, smoothing), c = color, lw = lw_smooth, alpha = alpha_smooth, label = label)
+            else:
+                ax.plot(utils._sliding_median(dists, smoothing), c = color, lw = lw_smooth, alpha = alpha_smooth, label = label)
+            
 
 def setup_time_trace(title, ylabel,
                      figsize = (9, 4), axissize=16, titlesize=20, dpi = 300):
