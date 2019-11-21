@@ -30,20 +30,20 @@ load_replicates(base, psf, nc, replicates=range(1, 6), stride = 5, stop = 5500*5
 '''
 
 def load_traj(struct_file_name, traj_file_name,
-              start=0, stop=-1, stride=1, smoothing=0):
-    filetype='netcdf'
-    trajid = molecule.load('psf', struct_file_name)
-    molecule.read(trajid, filetype, traj_file_name,
-                  beg=start, end=stop, skip=stride, waitfor=-1)
+			  start=0, stop=-1, stride=1, smoothing=0):
+	filetype='netcdf'
+	trajid = molecule.load('psf', struct_file_name)
+	molecule.read(trajid, filetype, traj_file_name,
+				  beg=start, end=stop, skip=stride, waitfor=-1)
 
 def load_replicates(base, psf, nc,
-                    replicates=range(1, 6), stride = 1, stop = -1):
-    sname = join(base, 'prep', psf)
-    print(sname)
-    for rep in map(str, replicates):
-        tname = join(base, 'rep'+rep, nc)
-        print(tname)
-        load_traj(sname, tname, stop = stop, stride = stride)
+					replicates=range(1, 6), stride = 1, stop = -1):
+	sname = join(base, 'prep', psf)
+	print(sname)
+	for rep in map(str, replicates):
+		tname = join(base, 'rep'+rep, nc)
+		print(tname)
+		load_traj(sname, tname, stop = stop, stride = stride)
 
 ####################################################
 #####             Alignment and RMSD           #####
@@ -56,95 +56,95 @@ mk6_rmsds = [rmsd_from_initial('noh resname MK6', molid) for molid in range(5) i
 '''
 
 def align_to_initial(sel, molids):
-    for molid in molids:
-        ref = atomsel(sel, molid=molid, frame=0)
-        for t in range(molecule.numframes(molid)):
-            sel_t = atomsel(sel, molid=molid, frame=t)
-            M = sel_t.fit(ref)
-            atomsel('all',molid=molid, frame=t).move(M)
+	for molid in molids:
+		ref = atomsel(sel, molid=molid, frame=0)
+		for t in range(molecule.numframes(molid)):
+			sel_t = atomsel(sel, molid=molid, frame=t)
+			M = sel_t.fit(ref)
+			atomsel('all',molid=molid, frame=t).move(M)
 
 def rmsd_from_initial(sel, molid):
-    sel_0 = atomsel(sel, molid=molid,frame=0)
-    rmsds = np.zeros((molecule.numframes(molid),))
-    for t in range(molecule.numframes(molid)):
-        sel_t = atomsel(sel, molid=molid, frame=t)
-        rmsds[t] = sel_0.rmsd(sel_t)
-    return rmsds
+	sel_0 = atomsel(sel, molid=molid,frame=0)
+	rmsds = np.zeros((molecule.numframes(molid),))
+	for t in range(molecule.numframes(molid)):
+		sel_t = atomsel(sel, molid=molid, frame=t)
+		rmsds[t] = sel_0.rmsd(sel_t)
+	return rmsds
 
 def rmsd_pd_wrapper(selections, molid):
-    nframes = molecule.numframes(molid)
-    data = np.zeros((nframes,len(selections)))
-    i = 0
-    for item in selections: 
-        data[:,i] = rmsd_from_initial(item['sel1'], molid)
-        i = i + 1
-    dataout = pd.DataFrame(data, columns = [p['name']+'_rmsd' for p in selections])
-    return dataout
+	nframes = molecule.numframes(molid)
+	data = np.zeros((nframes,len(selections)))
+	i = 0
+	for item in selections: 
+		data[:,i] = rmsd_from_initial(item['sel1'], molid)
+		i = i + 1
+	dataout = pd.DataFrame(data, columns = [p['name']+'_rmsd' for p in selections])
+	return dataout
 
 ####################################################
 #####            Distance analysis             #####
 ####################################################
 
 def atom_xyz(atoms, mol_id):
-    '''
-    [{'name':'O1', 'sel':''}, {'name':'O', 'sel':''}]
-    '''
-    #each selection is a name and a sel
-    labels = []
-    n_atoms = len(atoms)
-    end_frame = vmd.molecule.numframes(mol_id)
-    data = np.zeros((end_frame, n_atoms*3))
+	'''
+	[{'name':'O1', 'sel':''}, {'name':'O', 'sel':''}]
+	'''
+	#each selection is a name and a sel
+	labels = []
+	n_atoms = len(atoms)
+	end_frame = vmd.molecule.numframes(mol_id)
+	data = np.zeros((end_frame, n_atoms*3))
 
-    for i in range(0,n_atoms):
-        labels = labels + [atoms[i]['name']+':'+d for d in ['x','y','z']]
-        for f in range(0,end_frame): 
-            sel = vmd.atomsel(atoms[i]['sel'], molid=mol_id, frame=f)
-            data[f,3*i:(3*i+3)] = sel.get('x') + sel.get('y') + sel.get('z')
+	for i in range(0,n_atoms):
+		labels = labels + [atoms[i]['name']+':'+d for d in ['x','y','z']]
+		for f in range(0,end_frame): 
+			sel = vmd.atomsel(atoms[i]['sel'], molid=mol_id, frame=f)
+			data[f,3*i:(3*i+3)] = sel.get('x') + sel.get('y') + sel.get('z')
 
-    dataout = pd.DataFrame(data, columns = labels)
-    return dataout
+	dataout = pd.DataFrame(data, columns = labels)
+	return dataout
 
 def pair_dist_pd_wrapper(selections, molid): 
-    """
-    Selections [{'sel1':'', 'sel2':'', 'name':''},{'sel1':'', 'sel2':''}]
-    """
-    data = np.zeros((molecule.numframes(molid),len(selections)))
-    for t in range(molecule.numframes(molid)):
-        i = 0
-        if t%100 == 0:
-            print('reached frame {} / {}'.format(t, molecule.numframes(molid)))
-        for item in selections: 
-            sel1 = atomsel(item['sel1'], molid=molid, frame=t)
-            sel2 = atomsel(item['sel2'], molid=molid, frame=t)
-            data[t, i] = utils._calcdist(sel1, sel2)
-            i = i + 1
-    dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
-    return dataout
+	"""
+	Selections [{'sel1':'', 'sel2':'', 'name':''},{'sel1':'', 'sel2':''}]
+	"""
+	data = np.zeros((molecule.numframes(molid),len(selections)))
+	for t in range(molecule.numframes(molid)):
+		i = 0
+		if t%100 == 0:
+			print('reached frame {} / {}'.format(t, molecule.numframes(molid)))
+		for item in selections: 
+			sel1 = atomsel(item['sel1'], molid=molid, frame=t)
+			sel2 = atomsel(item['sel2'], molid=molid, frame=t)
+			data[t, i] = utils._calcdist(sel1, sel2)
+			i = i + 1
+	dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
+	return dataout
 
 def projection_metric(selections, molid):
-    """
-    Selections [{'ref1':'', 'ref2':'', 'target':'', 'name':''},{'sel1':'', 'sel2':''}]
-    
-    Measures the projection from target-ref1 onto ref2-ref1
-    ref1------x ref2
-      \   ^
-       \  |
-        \ |
-         x
-        target
+	"""
+	Selections [{'ref1':'', 'ref2':'', 'target':'', 'name':''},{'sel1':'', 'sel2':''}]
+	
+	Measures the projection from target-ref1 onto ref2-ref1
+	ref1------x ref2
+	  \   ^
+	   \  |
+		\ |
+		 x
+		target
 
-    """
-    data = np.zeros((molecule.numframes(molid),len(selections)))
-    for t in range(molecule.numframes(molid)):
-        i = 0
-        for item in selections: 
-            ref1 = utils._vectorize_coords(atomsel(item['ref1'], molid=molid, frame=t))
-            ref2 = utils._vectorize_coords(atomsel(item['ref2'], molid=molid, frame=t))
-            target = utils._vectorize_coords(atomsel(item['target'], molid=molid, frame=t))
-            data[t, i] = utils.v_projection(target.T - ref1.T, ref2.T - ref1.T) #project 1st onto 2nd
-            i = i + 1
-    dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
-    return dataout
+	"""
+	data = np.zeros((molecule.numframes(molid),len(selections)))
+	for t in range(molecule.numframes(molid)):
+		i = 0
+		for item in selections: 
+			ref1 = utils._vectorize_coords(atomsel(item['ref1'], molid=molid, frame=t))
+			ref2 = utils._vectorize_coords(atomsel(item['ref2'], molid=molid, frame=t))
+			target = utils._vectorize_coords(atomsel(item['target'], molid=molid, frame=t))
+			data[t, i] = utils.v_projection(target.T - ref1.T, ref2.T - ref1.T) #project 1st onto 2nd
+			i = i + 1
+	dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
+	return dataout
 
 ####################################################
 #####            Analysis over Conditions      #####
@@ -152,111 +152,117 @@ def projection_metric(selections, molid):
 
 TM1TO4 = 'protein and name CA and (resid 4 to 37 or resid 39 to 69 or resid 75 to 110 or resid 119 to 146)'
 def get_data_over_selections(info, align_sel=TM1TO4): 
-    '''
-    conditions_info should contain name, psf, paths, reps, selections
-    '''
-    #get the molid (just lodaded will be on top)
-    mol_id = vmd.molecule.get_top()
+	'''
+	conditions_info should contain name, psf, paths, reps, selections
+	'''
+	#get the molid (just lodaded will be on top)
+	mol_id = vmd.molecule.get_top()
 
-    #align if desired
-    if (align_sel != None):
-        align_to_initial(align_sel, [mol_id])
+	#align if desired
+	if (align_sel != None):
+		align_to_initial(align_sel, [mol_id])
 
-    #perform all the anlyses using the selections in info 
-    datasets = []
-    for i in range(0, len(info['analyses'])):
-	print('running analysis')
-        analysis = info['analyses'][i]
-	print(analysis)
-        #perform analysis level alignment
-        if 'alignments' in info:
-            alignment_sel = info['alignments'][i]
-            if alignment_sel != '':
-                align_to_initial(alignment_sel, [mol_id])
-        datasets.append(analysis(info['selections'][i], mol_id)) 
+	#perform all the anlyses using the selections in info 
+	datasets = []
+	for i in range(0, len(info['analyses'])):
+		print('running analysis')
+		analysis = info['analyses'][i]
+		print(analysis)
+		#perform analysis level alignment
+		if 'alignments' in info:
+			alignment_sel = info['alignments'][i]
+			if alignment_sel != '':
+				align_to_initial(alignment_sel, [mol_id])
+		datasets.append(analysis(info['selections'][i], mol_id)) 
 
-    #combine data from the different analyses
-    dataout = pd.concat(datasets, axis=1)
+	#combine data from the different analyses
+	dataout = pd.concat(datasets, axis=1)
 
-    return dataout, False
+	return dataout, False
 
 def run_analysis_crystal(working_dir, save_dir, save_name, info, align_sel):
-    out_dir = '{}/{}'.format(working_dir, save_dir)
-    print(info['file_type'], info['struct_file_name'])
-    mol_id = molecule.load(info['file_type'], info['struct_file_name'])
-    dataout, err = get_data_over_selections(info, align_sel)
-    vmd.molecule.delete(mol_id)
-    #Pickle and save
-    if (not err):
-        dataout.to_pickle(out_dir+'/{}.pkl'.format(save_name))
+	out_dir = '{}/{}'.format(working_dir, save_dir)
+	print(info['file_type'], info['struct_file_name'])
+	mol_id = molecule.load(info['file_type'], info['struct_file_name'])
+	dataout, err = get_data_over_selections(info, align_sel)
+	vmd.molecule.delete(mol_id)
+	#Pickle and save
+	if (not err):
+		dataout.to_pickle(out_dir+'/{}.pkl'.format(save_name))
 
 def run_analysis_traj(working_dir, save_dir, save_name, conditions, align_sel):
-    '''
-    Output 
-        /savedir
-            /conditions[0]['name']
-                save_name_1.pkl
-                save_name_2.pkl
-                ...
-            /conditions[0]['name']
-            etc. 
+	'''
+	Output 
+		/savedir
+			/conditions[0]['name']
+				save_name_1.pkl
+				save_name_2.pkl
+				...
+			/conditions[0]['name']
+			etc. 
 
-    will write pkl files containing pandas dataframes
-    Each column is a analyses and selection
-    Each row is a nanosecond
-    '''
-    #write log file for analyses
-    f = open(working_dir+'/'+save_name+".log", "a")
-    f.write('\n \n \n'+'Log for data in '+save_name)
-    f.write(datetime.datetime.now().strftime("%c")+'\n')
-    f.write(json.dumps([c['name'] for c in conditions])+'\n')
-    f.write(json.dumps([str(c['analyses']) for c in conditions])+'\n')
-    f.write(json.dumps(conditions[0]['selections'])+'\n')
-    f.close()
-    #collect data
-    for condition in conditions: 
-        condition_dir = '{}/{}/{}'.format(working_dir, save_dir, condition['name'])
-        if type(condition['reps']) is int:
-            reps = range(1,condition['reps']+1)
-	else:
-	    reps = condition['reps']
+	will write pkl files containing pandas dataframes
+	Each column is a analyses and selection
+	Each row is a nanosecond
+	'''
+	#write log file for analyses
+	f = open(working_dir+'/'+save_name+".log", "a")
+	f.write('\n \n \n'+'Log for data in '+save_name)
+	f.write(datetime.datetime.now().strftime("%c")+'\n')
+	f.write(json.dumps([c['name'] for c in conditions])+'\n')
+	f.write(json.dumps([str(c['analyses']) for c in conditions])+'\n')
+	f.write(json.dumps(conditions[0]['selections'])+'\n')
+	f.close()
+	#collect data
+	for condition in conditions: 
+		if type(condition['reps']) is int:
+			reps = range(1,condition['reps']+1)
+		else:
+			reps = condition['reps']
 
-	for rep in reps: 
-            #Load the trajectory
-            sname = join(condition['path'], 'prep', condition['psf'])
-            tname = join(condition['path'], 'rep'+str(rep), condition['nc'])
-            if not os.path.isfile(sname):
-                #try alternate format
-                sname = join(condition['path'], str(rep), condition['psf'])
-                if not os.path.isfile(sname):
-                    print('file does not exist '+sname)
-                    return [], True
-            if not os.path.isfile(tname):
-                #try alternate format
-                tname = join(condition['path'], str(rep), condition['nc'])
-                if not os.path.isfile(tname):
-                    print('file does not exist '+tname)
-                    return [], True
-            #load and align trajectories
-            load_stride = int(5/condition['stride']) #for analysis every nanosecond
-            #note 'stride' should be what you reimaged at 
-	    if 'end' in condition:
-		stop = condition['end']
-	    else:
-		stop = -1
-            load_traj(sname, tname, stop = stop, stride = load_stride) 
-            print('loaded trajectory successfully')
-	    #get the data
-            dataout, err = get_data_over_selections(condition, align_sel)
-            #Delete the molecule
-            mol_id = vmd.molecule.get_top()
-	    vmd.molecule.delete(mol_id)
-            #Make the save directory if it doesn't exist
-            if (not os.path.exists(condition_dir)): 
-                os.makedirs(condition_dir)
-            #Pickle and save
-            if (not err):
-                dataout.to_pickle(condition_dir+'/{}_{}.pkl'.format(save_name, rep))
+		for rep in reps: 
+			#Load the trajectory
+			if 'nc_file' in condition:
+				#use the absolute file path: provide psf_file and nc_file
+				sname = condition['psf_file']
+				tname = condition['nc_file'].format(str(rep))
+			else:
+				#autoformatting provide path, psf name, nc file name
+				sname = join(condition['path'], 'prep', condition['psf'])
+				tname = join(condition['path'], 'rep'+str(rep), condition['nc'])
+				if not os.path.isfile(sname):
+					#try alternate format
+					sname = join(condition['path'], str(rep), condition['psf'])
+					if not os.path.isfile(sname):
+						print('file does not exist '+sname)
+						return [], True
+				if not os.path.isfile(tname):
+					#try alternate format
+					tname = join(condition['path'], str(rep), condition['nc'])
+					if not os.path.isfile(tname):
+						print('file does not exist '+tname)
+						return [], True
+			#load and align trajectories
+			#note 'stride' should be what you reimaged at
+			load_stride = int(5/condition['stride']) #for analysis every nanosecond
+			if 'end' in condition:
+				stop = condition['end']
+			else:
+				stop = -1
+			load_traj(sname, tname, stop = stop, stride = load_stride) 
+			print('loaded trajectory successfully')
+			#get the data
+			dataout, err = get_data_over_selections(condition, align_sel)
+			#Delete the molecule
+			mol_id = vmd.molecule.get_top()
+			vmd.molecule.delete(mol_id)
+			#Make the save directory if it doesn't exist
+			condition_dir = '{}/{}/{}'.format(working_dir, save_dir, condition['name'])
+			if (not os.path.exists(condition_dir)): 
+				os.makedirs(condition_dir)
+			#Pickle and save
+			if (not err):
+				dataout.to_pickle(condition_dir+'/{}_{}.pkl'.format(save_name, rep))
 
 ####################################################
 #####            Development                   #####
@@ -264,142 +270,198 @@ def run_analysis_traj(working_dir, save_dir, save_name, conditions, align_sel):
 
 
 def calc_average_structure(molids, psf, minframe=0):
-    """
-        # From Robin - suggestion: should calculate per replicate average structure.
-        # Then, compare each average structure to the per condition average to determine variation across replicates.
-    Calculates the average structure for a given trajectory and psf
+	"""
+		# From Robin - suggestion: should calculate per replicate average structure.
+		# Then, compare each average structure to the per condition average to determine variation across replicates.
+	Calculates the average structure for a given trajectory and psf
 
-    Args:
-        molids (list of int): Trajectory IDs to average
-        psf (str): Path to psf file describing this topology
-        minframe (int): Frame to start computation from
-    """
-    data = []
-    start_frame = minframe
-    total_frames = 0
-    for m in molids:
-        if start_frame >= molecule.numframes(m): continue
-        summed = vmdnumpy.timestep(m, start_frame)
+	Args:
+		molids (list of int): Trajectory IDs to average
+		psf (str): Path to psf file describing this topology
+		minframe (int): Frame to start computation from
+	"""
+	data = []
+	start_frame = minframe
+	total_frames = 0
+	for m in molids:
+		if start_frame >= molecule.numframes(m): continue
+		summed = vmdnumpy.timestep(m, start_frame)
 	total_frames = total_frames + 1
 	for f in range(start_frame+1, molecule.numframes(m)):
-            summed  = vmdnumpy.timestep(m, f) + summed
-	    total_frames = total_frames + 1		
-    avg = summed/total_frames
-    print(avg)
-    # Now we have average coords, so set them in a new molecule
-    #if "_trans" in psf:
-    #    pdb = psf.replace("_trans.psf", ".pdb")
-    #else:
-    #    pdb = psf.replace(".psf", ".pdb")
+			summed  = vmdnumpy.timestep(m, f) + summed
+		total_frames = total_frames + 1		
+	avg = summed/total_frames
+	print(avg)
+	# Now we have average coords, so set them in a new molecule
+	#if "_trans" in psf:
+	#    pdb = psf.replace("_trans.psf", ".pdb")
+	#else:
+	#    pdb = psf.replace(".psf", ".pdb")
 
-    #outid = molecule.load('psf', psf) #, 'pdb', pdb)
-    outid = molids[0]
-    f = molecule.numframes(outid) - 1
-    atomsel("all", molid=outid, frame=f).set('x', avg[:,0])
-    atomsel("all", molid=outid, frame=f).set('y', avg[:,1])
-    atomsel("all", molid=outid, frame=f).set('z', avg[:,2])
-    return outid
+	#outid = molecule.load('psf', psf) #, 'pdb', pdb)
+	outid = molids[0]
+	f = molecule.numframes(outid) - 1
+	atomsel("all", molid=outid, frame=f).set('x', avg[:,0])
+	atomsel("all", molid=outid, frame=f).set('y', avg[:,1])
+	atomsel("all", molid=outid, frame=f).set('z', avg[:,2])
+	return outid
 
 def calc_rmsf_to_average(molid, avg, selstr, minframe=0, calc_rmsd=False):
-    """
-        # From Robin
-    Calculates the RMSF of an atom selection 
+	"""
+		# From Robin
+	Calculates the RMSF of an atom selection 
 
-    Args:
-        molid (int): VMD molecule ID to calculate
-        avg (int): VMD molecule ID of average structure
-        selstr (str): Selection to compute RMSF over
-        minframe (int): Frame to start computation from
-    """
-    f_avg = molecule.numframes(molid)-1 #temporary fix
-    mask = vmdnumpy.atomselect(avg, 0, selstr)
-    print(molid, avg, selstr, np.sum(mask))
-    print(molecule.numframes(molid), molecule.numframes(avg))
-    print(len(atomsel("all", avg)))
-    ref = np.compress(mask, vmdnumpy.timestep(avg,f_avg), axis=0)
+	Args:
+		molid (int): VMD molecule ID to calculate
+		avg (int): VMD molecule ID of average structure
+		selstr (str): Selection to compute RMSF over
+		minframe (int): Frame to start computation from
+	"""
+	f_avg = molecule.numframes(molid)-1 #temporary fix
+	mask = vmdnumpy.atomselect(avg, 0, selstr)
+	print(molid, avg, selstr, np.sum(mask))
+	print(molecule.numframes(molid), molecule.numframes(avg))
+	print(len(atomsel("all", avg)))
+	ref = np.compress(mask, vmdnumpy.timestep(avg,f_avg), axis=0)
 
-    if molecule.numframes(molid) <= minframe:
-        print("Only %d frames in %d" % (molecule.numframes(molid), molid))
-        return None
+	if molecule.numframes(molid) <= minframe:
+		print("Only %d frames in %d" % (molecule.numframes(molid), molid))
+		return None
 
-    N = len(ref)
-    rmsf = np.zeros(N)
-    rmsds = []
-    for f in range(minframe, molecule.numframes(molid)):
-        frame = np.compress(mask, vmdnumpy.timestep(molid, f), axis=0)
-        rmsf += np.sum((frame-ref)**2, axis=1) #removed the extra squareroot
-        if calc_rmsd:
-            MSD = np.sum(np.sum((frame-ref)**2, axis=1))/N
-            rmsds.append(np.sqrt(MSD))
+	N = len(ref)
+	rmsf = np.zeros(N)
+	rmsds = []
+	for f in range(minframe, molecule.numframes(molid)):
+		frame = np.compress(mask, vmdnumpy.timestep(molid, f), axis=0)
+		rmsf += np.sum((frame-ref)**2, axis=1) #removed the extra squareroot
+		if calc_rmsd:
+			MSD = np.sum(np.sum((frame-ref)**2, axis=1))/N
+			rmsds.append(np.sqrt(MSD))
 
-    rmsf /= (molecule.numframes(molid)-minframe)
-    rmsf = np.sqrt(rmsf)
-    print(rmsf)
-    return rmsf, rmsds
+	rmsf /= (molecule.numframes(molid)-minframe)
+	rmsf = np.sqrt(rmsf)
+	print(rmsf)
+	return rmsf, rmsds
 
 def rmsd_average_wrapper(selections, molid):
-    """
-    Selections [{'sel1':'', 'name':''},{'sel1':'', 'name':''}]
-    """
-    avg_id = calc_average_structure([molid], selections[0]['psf'], minframe=0) 
-    data = np.zeros((molecule.numframes(molid),len(selections)*2))
+	"""
+	Selections [{'sel1':'', 'name':''},{'sel1':'', 'name':''}]
+	"""
+	avg_id = calc_average_structure([molid], selections[0]['psf'], minframe=0) 
+	data = np.zeros((molecule.numframes(molid),len(selections)*2))
 
-    i = 0
-    for sel in selections:
-        rmsf, rmsds = calc_rmsf_to_average(molid, avg_id, sel['sel1'], minframe=0, calc_rmsd=True)
-        data[:,i] = rmsds
-        i = i + 1
-        data[0,i] = np.mean(rmsf)
-        print('final rmsf:', np.mean(rmsf))
-        i = i + 1
+	i = 0
+	for sel in selections:
+		rmsf, rmsds = calc_rmsf_to_average(molid, avg_id, sel['sel1'], minframe=0, calc_rmsd=True)
+		data[:,i] = rmsds
+		i = i + 1
+		data[0,i] = np.mean(rmsf)
+		print('final rmsf:', np.mean(rmsf))
+		i = i + 1
 
-    names = []
-    for p in selections:
-        names.append(p['name']+'_avg_rmsd')
-        names.append(p['name']+'_avg_rmsf')
-    dataout = pd.DataFrame(data, columns = names)
-    #vmd.molecule.delete(avg_id)
-    return dataout
+	names = []
+	for p in selections:
+		names.append(p['name']+'_avg_rmsd')
+		names.append(p['name']+'_avg_rmsf')
+	dataout = pd.DataFrame(data, columns = names)
+	#vmd.molecule.delete(avg_id)
+	return dataout
 
 def fast_pair_distance(selections, molid):
-    #make a dictionairy of base atoms 
-    #generate a mask of the relevent atoms 
-    #extract those positions for a particular frame 
-        #frame = numpy.compress(mask, vmdnumpy.timestep(molid, f), axis=0)
-        #add positions to array with time dimension 
-    #for each pair use the relevent row to perform the operations
-        #numpy.sqrt(numpy.sum((data[i,:,:] - data[j,:,:])**2, axis=1))
-    """
-    Selections [{'sel1':'', 'sel2':'', 'name':''},{'sel1':'', 'sel2':''}]
-    """
-    unique_atoms = set()
-    #dump all the selections into a set
-    for pair in selections:
-        unique_atoms.add('( '+pair['sel1']+' )')
-        unique_atoms.add('( '+pair['sel2']+' )')
+	#make a dictionairy of base atoms 
+	#generate a mask of the relevent atoms 
+	#extract those positions for a particular frame 
+		#frame = numpy.compress(mask, vmdnumpy.timestep(molid, f), axis=0)
+		#add positions to array with time dimension 
+	#for each pair use the relevent row to perform the operations
+		#numpy.sqrt(numpy.sum((data[i,:,:] - data[j,:,:])**2, axis=1))
+	"""
+	Selections [{'sel1':'', 'sel2':'', 'name':''},{'sel1':'', 'sel2':''}]
+	"""
+	unique_atoms = set()
+	#dump all the selections into a set
+	for pair in selections:
+		unique_atoms.add('( '+pair['sel1']+' )')
+		unique_atoms.add('( '+pair['sel2']+' )')
 
-    sel_to_index = {}
-    for atom in unique_atoms:
-        sel_to_index[atom] = np.nonzero(vmdnumpy.atomselect(molid, 0, atom))[0][0] 
+	sel_to_index = {}
+	for atom in unique_atoms:
+		sel_to_index[atom] = np.nonzero(vmdnumpy.atomselect(molid, 0, atom))[0][0] 
 
-    sel_all = ' or '.join(list(unique_atoms))
-    mask = vmdnumpy.atomselect(molid, 0, sel_all)
-    atom_index = np.nonzero(mask)[0]
-    index_to_i = {x:i for i,x in enumerate(atom_index)}
+	sel_all = ' or '.join(list(unique_atoms))
+	mask = vmdnumpy.atomselect(molid, 0, sel_all)
+	atom_index = np.nonzero(mask)[0]
+	index_to_i = {x:i for i,x in enumerate(atom_index)}
 
-    n_frames = molecule.numframes(molid)
-    n_atoms = len(unique_atoms)
-    positions = np.zeros((n_atoms, 3, n_frames))
-    for f in range(0, n_frames):
-        positions[:,:,f] = np.compress(mask, vmdnumpy.timestep(molid, f), axis=0)
+	n_frames = molecule.numframes(molid)
+	n_atoms = len(unique_atoms)
+	positions = np.zeros((n_atoms, 3, n_frames))
+	for f in range(0, n_frames):
+		positions[:,:,f] = np.compress(mask, vmdnumpy.timestep(molid, f), axis=0)
 
-    data = np.zeros((n_frames,len(selections)))
-    s = 0
-    for item in selections: 
-        i = index_to_i[sel_to_index['( '+item['sel1']+' )']]
-        j = index_to_i[sel_to_index['( '+item['sel2']+' )']]
-        data[:, s] = np.sqrt(np.sum((positions[i,:,:] - positions[j,:,:])**2, axis=0))
-        s = s + 1
-    dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
-    return dataout
+	data = np.zeros((n_frames,len(selections)))
+	s = 0
+	for item in selections: 
+		i = index_to_i[sel_to_index['( '+item['sel1']+' )']]
+		j = index_to_i[sel_to_index['( '+item['sel2']+' )']]
+		data[:, s] = np.sqrt(np.sum((positions[i,:,:] - positions[j,:,:])**2, axis=0))
+		s = s + 1
+	dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
+	return dataout
+
+def label_values(selectors, mode, mol_id):
+	"""
+	Computes the label value between the atoms specified by the selectors in
+	`selectors`. The number of selectors must match the mode (2 through 4).
+	For each of the molecules in `mol_ids` (default is all molecules), computes
+	the label value at the given frames (default is all frames available).
+	Returns a dictionary, mapping molecule ID to NumPy array of label values,
+	where each list is parallel to the list of frame provided, or is simply
+	all frames available.
+	"""
+
+	if mode not in [2, 3, 4]:
+		raise ValueError("mode must be 2, 3, or 4")
+	if len(selectors) != mode:
+		raise ValueError("mode is {0}, so expected {0} selectors".format(mode))
+
+	if mode == 2:
+		label_type = vmd.label.BOND
+	elif mode == 3:
+		label_type = vmd.label.ANGLE
+	elif mode == 4:
+		label_type = vmd.label.DIHEDRAL
+
+	atom_ids = [
+		list(vmd.atomsel(selector, molid=mol_id, frame=0))[0]
+		for selector in selectors
+	]
+
+	label = vmd.label.add(
+		label_type,
+		tuple([mol_id] * mode),
+		tuple(atom_ids)
+	)
+
+	val_arr = vmd.label.getvalues(label_type, label)
+	result = np.array(val_arr)
+
+	return result
+
+def dihedral_values(selector_1, selector_2, selector_3, selector_4, mol_id):
+	"""
+	Wrapper for `label_values` for dihedral twist.
+	"""
+	return label_values([selector_1, selector_2, selector_3, selector_4], 4, mol_id)
+
+def dihedral_wrapper(selections, molid):
+	data = np.zeros((molecule.numframes(molid),len(selections)))
+	i = 0
+	for sel in selections:
+		out = dihedral_values(sel['sel1'], sel['sel2'], sel['sel3'], sel['sel4'], mol_id=molid)
+		data[:,i] = out
+		i = i + 1
+	dataout = pd.DataFrame(data, columns = [p['name'] for p in selections])
+	return dataout
+
 
