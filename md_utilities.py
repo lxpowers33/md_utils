@@ -249,6 +249,7 @@ def run_analysis_traj(working_dir, save_dir, save_name, conditions, align_sel):
 				stop = condition['end']
 			else:
 				stop = -1
+			print(sname, '\n', tname, '\n', stop)
 			load_traj(sname, tname, stop = stop, stride = load_stride) 
 			print('loaded trajectory successfully')
 			#get the data
@@ -286,10 +287,10 @@ def calc_average_structure(molids, psf, minframe=0):
 	for m in molids:
 		if start_frame >= molecule.numframes(m): continue
 		summed = vmdnumpy.timestep(m, start_frame)
-	total_frames = total_frames + 1
-	for f in range(start_frame+1, molecule.numframes(m)):
+		total_frames = total_frames + 1
+		for f in range(start_frame+1, molecule.numframes(m)):
 			summed  = vmdnumpy.timestep(m, f) + summed
-		total_frames = total_frames + 1		
+			total_frames = total_frames + 1
 	avg = summed/total_frames
 	print(avg)
 	# Now we have average coords, so set them in a new molecule
@@ -432,10 +433,7 @@ def label_values(selectors, mode, mol_id):
 	elif mode == 4:
 		label_type = vmd.label.DIHEDRAL
 
-	atom_ids = [
-		list(vmd.atomsel(selector, molid=mol_id, frame=0))[0]
-		for selector in selectors
-	]
+	atom_ids = [list(vmd.atomsel(selector, molid=mol_id, frame=0))[0] for selector in selectors]
 
 	label = vmd.label.add(
 		label_type,
