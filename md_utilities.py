@@ -270,7 +270,7 @@ def run_analysis_traj(working_dir, save_dir, save_name, conditions, align_sel):
 ####################################################
 
 
-def calc_average_structure(molids, psf, minframe=0):
+def calc_average_structure(molids, minframe=0):
 	"""
 		# From Robin - suggestion: should calculate per replicate average structure.
 		# Then, compare each average structure to the per condition average to determine variation across replicates.
@@ -348,7 +348,7 @@ def rmsd_average_wrapper(selections, molid):
 	"""
 	Selections [{'sel1':'', 'name':''},{'sel1':'', 'name':''}]
 	"""
-	avg_id = calc_average_structure([molid], selections[0]['psf'], minframe=0) 
+	avg_id = calc_average_structure([molid], minframe=0) 
 	data = np.zeros((molecule.numframes(molid),len(selections)*2))
 
 	i = 0

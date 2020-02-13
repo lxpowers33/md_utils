@@ -111,6 +111,29 @@ def add_simulation_reps(directory, condition, version, reps, input_dir, project)
         f.write('ln -s %s/system.psf %s/system.psf \n' %(prep_dir, target_dir))
     f.close()
 
+def write_reimage_sh(commands, name):
+    with open(name, 'w') as f:
+        f.write('#!/bin/bash\n')
+        for command in commands:
+            f.write(command + '\n')
+
+
+def reimage(base_directory, c_name, version, reps, stride):
+    jobs = []
+    for r in range(1, reps+1):
+        version_folder = base_directory + '/' + c_name + '/v' + str(version) + '/'
+        rep_folder = version_folder + 'rep{}'.format(r)
+        coord_file = rep_folder + '/system.inpcrd'
+        parm_file = rep_folder  + '/system.psf'
+        target = rep_folder
+        cmd = 'reimage.py {} {} {} --stride {}  --include-eq {}'.format(parm_file, coord_file, rep_folder, stride, target)
+        print(cmd)
+        jobs.append(cmd)
+
+    write_reimage_sh(jobs, 'reimage.sh')
+    print('sbatch -t 00:20:00 -p rondror reimage.sh')
+    os.system('sbatch -t 00:20:00 -p rondror reimage.sh')
+
 if __name__ == '__main__':
     #first task is to build the new condition folder
     task = sys.argv[1]
@@ -120,9 +143,11 @@ if __name__ == '__main__':
         dabble to run dabble with default arguments (in prep folder) \n\
         arguments are: dabble PENT_MK6 \n\n\
         sim_files to build the simulation files in rep directories \n\
-        arguments are: sim_files PENT_MK6 v1 GPR40 \n\n\
+        arguments are: sim_files PENT_MK6 v1 GPR40 membrane (or water)\n\n\
         run_add to add to list of simulations to keep running \n\
-        arguments are: ")
+        arguments are: run_add PENT_MK6 1 GPR40\n\n\
+        reimage to reimage condition \n\
+        arguments are: reimage PENT_MK6 1 5")
     elif task == 'newc':
         #arguments are  newc PENT_MK6 3 GPR40
         gen_config = {"creator": "Alex Powers", "project": sys.argv[4]}
@@ -134,9 +159,25 @@ if __name__ == '__main__':
         file_prefix = sys.argv[2]
         files = os.listdir(os.getcwd())
         strfiles = [f for f in files if f.endswith('.str')]
-        strs = ["--str {} ".format(f) for f in strfiles]
-        cmd = "~/miniconda3/envs/conda2.7/bin/dabble -ff charmm36m --absolute-x 80.0 --absolute-y 80.0 -w 10 --hmr \
-        -i {}_to_dabble.mae {} -o {}_dabbled.prmtop -O | tee dabble.log".format(file_prefix, strs, file_prefix)
+        strs = ''.join(["-str {} ".format(f) for f in strfiles])
+        cmd = ''
+        if sys.argv[3] == '1':
+            print('option 1 normal size is 80')
+            cmd = "~/miniconda3/envs/conda2.7/bin/dabble -ff charmm36m --absolute-x 90.0 --absolute-y 90.0 -w 10 --hmr \
+                    -i {}_to_dabble.mae {} -o {}_dabbled.prmtop -O | tee dabble.log".format(file_prefix, strs,
+                                                                                            file_prefix)
+        if sys.argv[3] == '2':
+            print('option 2')
+            cmd = "~/miniconda3/envs/conda2.7/bin/dabble -ff charmm36m --absolute-x 122 --absolute-y 122 -w 10 --hmr \
+                                -i {}_to_dabble.mae {} -o {}_dabbled.prmtop -O | tee dabble.log".format(file_prefix,
+                                                                                                        strs, file_prefix)
+        
+	if sys.argv[3] == '3':
+            print('option 3')
+            cmd = "~/miniconda3/envs/conda2.7/bin/dabble -ff charmm36m -M TIP3 -w 14 --hmr \
+                    -i {}_to_dabble.mae {} -o {}_dabbled.prmtop -O | tee dabble.log".format(file_prefix, strs,
+                                                                                            file_prefix)
+	print(cmd)
         os.system(cmd)
     elif task == 'sim_files':
         directory = os.getcwd()
@@ -145,11 +186,41 @@ if __name__ == '__main__':
         project = sys.argv[4]
         target_dir = directory + '/' + condition + '/' + version
         reps = len([f for f in os.listdir(target_dir) if f.startswith("rep")]) #get number of prep directories
-        input_dir = '/home/users/lxpowers/projects/GPR40/input_files'
+        if sys.argv[5] == 'membrane':
+        	input_dir = '/home/users/lxpowers/projects/GPR40/input_files'
+        if sys.argv[5] == 'water':
+        	input_dir = '/home/users/lxpowers/projects/CREB/input_files'
         setup_simulation_files(directory, condition, version, reps, input_dir, project)
         os.system('chmod +x setup_condition.sh')
     elif task == 'run_add':
-        print('not finished')
+        directory = os.getcwd()
+        c = sys.argv[2]
+        v = str(int(sys.argv[3]))
+        p = sys.argv[4]
+
+        target_dir = directory + '/' + c + '/v' + v
+        nreps = len([f for f in os.listdir(target_dir) if f.startswith("rep")])
+        r_string = ','.join([str(i) for i in range(1,nreps+1)])
+
+        add_file = '/home/users/lxpowers/analyze_running/run_config.py'
+        with open(add_file) as f:
+            content = f.readlines()
+        print(content)
+        content.append(']\n')
+        newc =  "{{'c':['{}'], 'v':[{}], 'r':[{}], 'p':'{}', 'd': '{}'}},\n".format(c, v, r_string, p, directory)
+        content[-2] = newc
+        with open(add_file, "w") as f:
+            for line in content:
+                # write line to output file
+                f.write(line)
+    elif task == 'reimage':
+        directory = os.getcwd()
+        c = sys.argv[2]
+        v = str(int(sys.argv[3]))
+        s = sys.argv[4]
+        target_dir = directory + '/' + c + '/v' + v
+        nreps = len([f for f in os.listdir(target_dir) if f.startswith("rep")])
+        reimage(directory, c, v, nreps, s)
     else:
         print('invalid command')
 
